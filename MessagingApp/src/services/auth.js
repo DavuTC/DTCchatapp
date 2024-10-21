@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_URL = 'http://10.0.2.2:3000/api';  // Bu URL'yi kendi backend adresinizle değiştirin
+const API_URL = 'http://10.0.2.2:3000/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -21,66 +21,45 @@ api.interceptors.request.use(
   }
 );
 
-const login = async (email, password) => {
+export const login = async (email, password) => {
   try {
     console.log('Sending login request to:', `${API_URL}/auth/login`);
     const response = await api.post('/auth/login', { email, password });
     console.log('Login response:', response.data);
-
-    let token;
+    
     if (response.data && response.data.token) {
-      token = response.data.token;
-    } else if (response.data && response.data.data && response.data.data.token) {
-      token = response.data.data.token;
+      await SecureStore.setItemAsync('token', response.data.token);
+      console.log('Token saved:', response.data.token);
+      return response.data;
     } else {
-      console.error('Unexpected response structure:', response.data);
       throw new Error('Token not found in response');
     }
-
-    await SecureStore.setItemAsync('token', token);
-    console.log('Token saved:', token);
-    return response.data;
   } catch (error) {
     console.error('Login error:', error.response ? error.response.data : error.message);
     throw error;
   }
 };
 
-const register = async (email, password, displayName) => {
+export const register = async (email, password, displayName) => {
   try {
     console.log('Sending register request to:', `${API_URL}/auth/register`);
     const response = await api.post('/auth/register', { email, password, displayName });
-    console.log('Register response:', JSON.stringify(response.data, null, 2));
+    console.log('Register response:', response.data);
     
-    let token, userData;
     if (response.data && response.data.token) {
-      token = response.data.token;
-      userData = response.data.user || response.data;
-    } else if (response.data && response.data.data && response.data.data.token) {
-      token = response.data.data.token;
-      userData = response.data.data.user || response.data.data;
+      await SecureStore.setItemAsync('token', response.data.token);
+      console.log('Token saved:', response.data.token);
+      return response.data;
     } else {
-      console.error('Unexpected response structure:', JSON.stringify(response.data, null, 2));
-      throw new Error('Registration failed: Token not found in response');
+      throw new Error('Token not found in response');
     }
-
-    if (!token) {
-      throw new Error('Registration failed: Token not received');
-    }
-
-    await SecureStore.setItemAsync('token', token);
-    console.log('Token saved successfully');
-    return { token, user: userData };
   } catch (error) {
-    console.error('Registration error:', error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
-    if (error.response && error.response.status === 400 && error.response.data.message === 'User already exists') {
-      throw new Error('User already exists');
-    }
+    console.error('Register error:', error.response ? error.response.data : error.message);
     throw error;
   }
 };
 
-const logout = async () => {
+export const logout = async () => {
   try {
     await SecureStore.deleteItemAsync('token');
     console.log('Token removed');
@@ -90,7 +69,7 @@ const logout = async () => {
   }
 };
 
-const getGroups = async () => {
+export const getGroups = async () => {
   try {
     const response = await api.get('/groups');
     console.log('Get groups response:', response.data);
@@ -101,7 +80,7 @@ const getGroups = async () => {
   }
 };
 
-const createGroup = async (groupName) => {
+export const createGroup = async (groupName) => {
   try {
     const response = await api.post('/groups', { name: groupName });
     console.log('Create group response:', response.data);
@@ -112,15 +91,40 @@ const createGroup = async (groupName) => {
   }
 };
 
+export const getUsers = async () => {
+  try {
+    // Temporary solution until the backend endpoint is created
+    console.log('Get users request - This endpoint is not yet implemented on the backend');
+    return [
+      { id: '1', displayName: 'User 1' },
+      { id: '2', displayName: 'User 2' },
+      { id: '3', displayName: 'User 3' },
+    ];
+  } catch (error) {
+    console.error('Get users error:', error.response ? error.response.data : error.message);
+    throw error;
+  }
+};
 
+export const getDirectMessages = async () => {
+  try {
+    // Temporary solution until the backend endpoint is created
+    console.log('Get direct messages request - This endpoint is not yet implemented on the backend');
+    return [];
+  } catch (error) {
+    console.error('Get direct messages error:', error.response ? error.response.data : error.message);
+    throw error;
+  }
+};
 
 export const authService = {
   login,
   register,
   logout,
   getGroups,
-  createGroup
-  
+  createGroup,
+  getUsers,
+  getDirectMessages
 };
 
 export default api;

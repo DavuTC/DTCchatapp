@@ -1,26 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { authService } from '../services/auth';
 
 export default function HomeScreen({ navigation }) {
-  const [groups, setGroups] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [directMessages, setDirectMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchGroups();
+    fetchUsersAndMessages();
   }, []);
 
-  const fetchGroups = async () => {
+  const fetchUsersAndMessages = async () => {
     try {
       setIsLoading(true);
-      const groupsData = await authService.getGroups();
-      console.log('Fetched groups:', groupsData);
-      setGroups(Array.isArray(groupsData) ? groupsData : []);
+      const [fetchedUsers, fetchedMessages] = await Promise.all([
+        authService.getUsers(),
+        authService.getDirectMessages()
+      ]);
+      setUsers(fetchedUsers);
+      setDirectMessages(fetchedMessages);
     } catch (error) {
-      console.error('Error fetching groups:', error);
-      Alert.alert('Error', 'Failed to fetch groups. Please try again.');
+      console.error('Error fetching data:', error);
+      Alert.alert('Error', 'Failed to fetch data. Some features may be unavailable.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleNewMessage = () => {
+    navigation.navigate('NewMessage', { users });
+  };
+
+  const handleCreateGroup = async () => {
+    const groupName = await new Promise((resolve) => {
+      Alert.prompt(
+        "Create New Group",
+        "Enter the name for the new group:",
+        [
+          { text: "Cancel", onPress: () => resolve(null), style: "cancel" },
+          { text: "OK", onPress: (name) => resolve(name) }
+        ],
+        "plain-text"
+      );
+    });
+
+    if (groupName) {
+      try {
+        const newGroup = await authService.createGroup(groupName);
+        Alert.alert("Success", "New group created successfully!");
+        // Optionally, you can navigate to the new group or refresh the group list here
+      } catch (error) {
+        console.error('Error creating group:', error);
+        Alert.alert("Error", "Failed to create group. Please try again.");
+      }
     }
   };
 
@@ -34,71 +67,45 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  const handleCreateGroup = async () => {
-    const groupName = await new Promise((resolve) => {
-      Alert.prompt(
-        "Create New Group",
-        "Enter the name for the new group:",
-        [
-          {
-            text: "Cancel",
-            onPress: () => resolve(null),
-            style: "cancel"
-          },
-          {
-            text: "OK",
-            onPress: (name) => resolve(name)
-          }
-        ],
-        "plain-text"
-      );
-    });
-
-    if (groupName) {
-      try {
-        const newGroup = await authService.createGroup(groupName);
-        console.log('New group created:', newGroup);
-        setGroups([...groups, newGroup]);
-        Alert.alert("Success", "New group created successfully!");
-      } catch (error) {
-        console.error('Error creating group:', error);
-        Alert.alert("Error", "Failed to create group. Please try again.");
-      }
-    }
-  };
-
-  const renderGroupItem = ({ item }) => (
+  const renderUserItem = ({ item }) => (
     <TouchableOpacity
-      style={styles.groupItem}
-      onPress={() => navigation.navigate('Chat', { groupId: item.id, groupName: item.name })}
+      style={styles.userItem}
+      onPress={() => navigation.navigate('Chat', { userId: item.id, userName: item.displayName })}
     >
-      <Text style={styles.groupName}>{item.name}</Text>
+      <Text style={styles.userName}>{item.displayName}</Text>
     </TouchableOpacity>
   );
 
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <Text>Loading groups...</Text>
+        <ActivityIndicator size="large" color="#0000ff" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Your Groups</Text>
-      {groups.length > 0 ? (
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleNewMessage}>
+          <Text style={styles.headerButtonText}>New Message</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.headerButton} onPress={handleCreateGroup}>
+          <Text style={styles.headerButtonText}>New Group</Text>
+        </TouchableOpacity>
+      </View>
+      
+      <Text style={styles.sectionTitle}>Direct Messages</Text>
+      {users.length > 0 ? (
         <FlatList
-          data={groups}
-          renderItem={renderGroupItem}
+          data={users}
+          renderItem={renderUserItem}
           keyExtractor={(item) => item.id.toString()}
         />
       ) : (
-        <Text style={styles.noGroups}>You don't have any groups yet.</Text>
+        <Text style={styles.noDataText}>No users found</Text>
       )}
-      <TouchableOpacity style={styles.createGroupButton} onPress={handleCreateGroup}>
-        <Text style={styles.createGroupButtonText}>Create New Group</Text>
-      </TouchableOpacity>
+      
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
@@ -116,43 +123,51 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  title: {
-    fontSize: 24,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 20,
   },
-  groupItem: {
+  headerButton: {
+    backgroundColor: '#007AFF',
+    padding: 10,
+    borderRadius: 5,
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  headerButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  userItem: {
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
   },
-  groupName: {
-    fontSize: 18,
+  userName: {
+    fontSize: 16,
   },
-  noGroups: {
+  noDataText: {
     textAlign: 'center',
     marginTop: 20,
     fontSize: 16,
-  },
-  createGroupButton: {
-    backgroundColor: '#4CAF50',
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  createGroupButtonText: {
-    color: 'white',
-    fontSize: 16,
+    color: '#666',
   },
   logoutButton: {
     backgroundColor: '#FF3B30',
     padding: 10,
     borderRadius: 5,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 20,
   },
   logoutButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

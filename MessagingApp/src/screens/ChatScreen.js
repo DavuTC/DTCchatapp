@@ -1,17 +1,16 @@
-// src/screens/ChatScreen.js
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { getMessages, sendMessage } from '../services/api';
 import io from 'socket.io-client';
 
 export default function ChatScreen({ route, navigation }) {
-  const { groupId, groupName } = route.params;
+  const { groupId, groupName, userId, userName } = route.params;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    navigation.setOptions({ title: groupName });
+    navigation.setOptions({ title: groupId ? groupName : userName });
     fetchMessages();
     setupSocket();
 
@@ -23,7 +22,7 @@ export default function ChatScreen({ route, navigation }) {
   }, []);
 
   const setupSocket = () => {
-    const newSocket = io('http://localhost:3000');
+    const newSocket = io('http://10.0.2.2:3000/api');
     newSocket.on('message', (message) => {
       setMessages((prevMessages) => [message, ...prevMessages]);
     });
@@ -32,7 +31,7 @@ export default function ChatScreen({ route, navigation }) {
 
   const fetchMessages = async () => {
     try {
-      const fetchedMessages = await getMessages(groupId);
+      const fetchedMessages = await getMessages(groupId || userId);
       setMessages(fetchedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -42,7 +41,11 @@ export default function ChatScreen({ route, navigation }) {
   const handleSendMessage = async () => {
     if (newMessage.trim() === '') return;
     try {
-      await sendMessage(groupId, newMessage);
+      if (groupId) {
+        await sendMessage(groupId, newMessage);
+      } else {
+        await sendMessage(userId, newMessage, true); // true indicates it's a direct message
+      }
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);

@@ -7,7 +7,7 @@ let socket;
 export const initSocket = async () => {
   const token = await SecureStore.getItemAsync('token');
   
-  socket = io('http://localhost:3000', {
+  socket = io('http://10.0.2.2:3000/api', {
     auth: {
       token: token
     }

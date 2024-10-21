@@ -1,30 +1,28 @@
 const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema({
-  group: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Group',
-    required: true
-  },
   sender: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  text: {
+  recipient: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  content: {
     type: String,
     required: true
   },
-  receivedTimeUsers: {
-    type: Map,
-    of: Date,
-    default: {}
+  isDirect: {
+    type: Boolean,
+    default: true
   },
-  readTimeUsers: {
-    type: Map,
-    of: Date,
-    default: {}
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
-}, { timestamps: true });
+});
 
 module.exports = mongoose.model('Message', messageSchema);
