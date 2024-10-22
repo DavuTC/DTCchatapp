@@ -85,13 +85,33 @@ export default function NewMessageScreen({ navigation }) {
     </TouchableOpacity>
   );
 
-  const renderMessageItem = ({ item }) => (
-    <View style={[styles.messageItem, item.sender === 'You' ? styles.sentMessage : styles.receivedMessage]}>
-      <Text style={styles.messageSender}>{item.sender}</Text>
-      <Text style={styles.messageContent}>{item.content}</Text>
-      <Text style={styles.messageTimestamp}>{new Date(item.createdAt).toLocaleTimeString()}</Text>
-    </View>
-  );
+  const renderMessageItem = ({ item }) => {
+    const isCurrentUser = item.sender === 'You';
+    const senderName = isCurrentUser ? 'You' : selectedUser?.displayName || item.sender;
+    
+    return (
+      <View style={[
+        styles.messageItem,
+        isCurrentUser ? styles.sentMessageContainer : styles.receivedMessageContainer
+      ]}>
+        <View style={[
+          styles.messageContent,
+          isCurrentUser ? styles.sentMessage : styles.receivedMessage
+        ]}>
+          <Text style={[
+            styles.messageSender,
+            isCurrentUser ? styles.sentSenderName : styles.receivedSenderName
+          ]}>
+            {senderName}
+          </Text>
+          <Text style={styles.messageText}>{item.content}</Text>
+          <Text style={styles.messageTimestamp}>
+            {new Date(item.createdAt).toLocaleTimeString()}
+          </Text>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -213,30 +233,51 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messageItem: {
-    padding: 10,
-    marginBottom: 5,
-    borderRadius: 5,
-    maxWidth: '80%',
-  },
-  sentMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#DCF8C6',
-  },
-  receivedMessage: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFFFFF',
-  },
-  messageSender: {
-    fontWeight: 'bold',
-    marginBottom: 5,
+    padding: 5,
+    marginVertical: 3,
+    width: '100%',
   },
   messageContent: {
+    padding: 10,
+    borderRadius: 10,
+    maxWidth: '80%',
+  },
+  sentMessageContainer: {
+    alignItems: 'flex-end',
+  },
+  receivedMessageContainer: {
+    alignItems: 'flex-start',
+  },
+  sentMessage: {
+    backgroundColor: '#DCF8C6',
+    borderTopRightRadius: 2,
+  },
+  receivedMessage: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 2,
+  },
+  messageSender: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  sentSenderName: {
+    textAlign: 'right',
+    color: '#666',
+  },
+  receivedSenderName: {
+    textAlign: 'left',
+    color: '#666',
+  },
+  messageText: {
     fontSize: 16,
+    color: '#000',
   },
   messageTimestamp: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#888',
     alignSelf: 'flex-end',
+    marginTop: 2,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -263,5 +304,5 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: 'bold',
-  },
+  }
 });
