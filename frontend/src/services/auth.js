@@ -29,7 +29,9 @@ export const login = async (email, password) => {
     
     if (response.data && response.data.token) {
       await SecureStore.setItemAsync('token', response.data.token);
-      console.log('Token saved:', response.data.token);
+      // User bilgilerini de kaydet
+      await SecureStore.setItemAsync('user', JSON.stringify(response.data.user));
+      console.log('Token and user data saved');
       return response.data;
     } else {
       throw new Error('Token not found in response');
@@ -71,6 +73,7 @@ export const logout = async () => {
 
 export const getGroups = async () => {
   try {
+    console.log('Fetching groups...');
     const response = await api.get('/groups');
     console.log('Get groups response:', response.data);
     return response.data;
@@ -80,26 +83,25 @@ export const getGroups = async () => {
   }
 };
 
-export const createGroup = async (groupName) => {
+
+export const createGroup = async (groupData) => {
   try {
-    const response = await api.post('/groups', { name: groupName });
+    console.log('Creating group with data:', groupData);
+    const response = await api.post('/groups', groupData);
     console.log('Create group response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Create group error:', error.response ? error.response.data : error.message);
+    console.error('Create group error:', error.response?.data || error);
     throw error;
   }
 };
 
 export const getUsers = async () => {
   try {
-    // Temporary solution until the backend endpoint is created
-    console.log('Get users request - This endpoint is not yet implemented on the backend');
-    return [
-      { id: '1', displayName: 'User 1' },
-      { id: '2', displayName: 'User 2' },
-      { id: '3', displayName: 'User 3' },
-    ];
+    console.log('Fetching users...');
+    const response = await api.get('/users');
+    console.log('Get users response:', response.data);
+    return response.data;
   } catch (error) {
     console.error('Get users error:', error.response ? error.response.data : error.message);
     throw error;
@@ -108,11 +110,36 @@ export const getUsers = async () => {
 
 export const getDirectMessages = async () => {
   try {
-    // Temporary solution until the backend endpoint is created
-    console.log('Get direct messages request - This endpoint is not yet implemented on the backend');
-    return [];
+    console.log('Fetching direct messages...');
+    const response = await api.get('/messages/direct');
+    console.log('Get direct messages response:', response.data);
+    return response.data;
   } catch (error) {
     console.error('Get direct messages error:', error.response ? error.response.data : error.message);
+    throw error;
+  }
+};
+
+export const getGroupMessages = async (groupId) => {
+  try {
+    console.log('Fetching group messages for:', groupId);
+    const response = await api.get(`/messages/group/${groupId}`);
+    console.log('Group messages response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Get group messages error:', error.response?.data || error);
+    throw error;
+  }
+};
+
+export const sendMessage = async (messageData) => {
+  try {
+    console.log('Sending message:', messageData);
+    const response = await api.post('/messages', messageData);
+    console.log('Send message response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Send message error:', error.response ? error.response.data : error.message);
     throw error;
   }
 };
@@ -124,7 +151,10 @@ export const authService = {
   getGroups,
   createGroup,
   getUsers,
-  getDirectMessages
+  getDirectMessages,
+  getGroupMessages,
+  sendMessage,
+  createGroup
 };
 
 export default api;
