@@ -5,22 +5,26 @@ const jwt = require('jsonwebtoken');
 exports.register = async (req, res) => {
   try {
     const { email, password, displayName } = req.body;
+    console.log('Register attempt for:', email);
 
     let user = await User.findOne({ email });
     if (user) {
+      console.log('Registration failed: User already exists:', email);
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    // tempId oluştur
+    const tempId = Math.random().toString(36).substr(2, 9);
+
     user = new User({
       email,
-      password,
-      displayName
+      password, // Model'deki pre-save middleware şifreyi hash'leyecek
+      displayName,
+      tempId
     });
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
-
     await user.save();
+    console.log('User registered successfully:', email);
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
@@ -29,11 +33,12 @@ exports.register = async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        displayName: user.displayName
+        displayName: user.displayName,
+        tempId: user.tempId
       }
     });
   } catch (error) {
-    console.error(error);
+    console.error('Registration error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -41,29 +46,42 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log('Login attempt for:', email);
 
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      console.log('Login failed: Missing credentials');
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
+      console.log('Login failed: User not found:', email);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    console.log('User found, comparing passwords...');
+    const isMatch = await user.comparePassword(password);
+    console.log('Password match result:', isMatch);
+
     if (!isMatch) {
+      console.log('Login failed: Invalid password for:', email);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    console.log('Login successful for:', email);
 
     res.json({
       token,
       user: {
         id: user.id,
         email: user.email,
-        displayName: user.displayName
+        displayName: user.displayName,
+        tempId: user.tempId
       }
     });
   } catch (error) {
-    console.error(error);
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -76,7 +94,7 @@ exports.getMe = async (req, res) => {
     }
     res.json(user);
   } catch (error) {
-    console.error(error);
+    console.error('GetMe error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -96,7 +114,7 @@ exports.updateProfile = async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    console.error(error);
+    console.error('Update profile error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

@@ -7,6 +7,7 @@ const morgan = require('morgan');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const messageRoutes = require('./routes/message');
+const groupRoutes = require('./routes/group');
 
 const app = express();
 
@@ -35,20 +36,43 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/groups', groupRoutes);  
+
+// Debug middleware - gelen istekleri logla
+app.use((req, res, next) => {
+  console.log('Incoming request:', {
+    method: req.method,
+    url: req.url,
+    body: req.body,
+    headers: req.headers
+  });
+  next();
+});
 
 // 404 handler
-app.use((req, res, next) => {
+app.use((req, res) => {
+  console.log('404 Error for:', req.originalUrl);
   res.status(404).json({ message: 'Route not found' });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!', error: err.message });
+  console.error('Error:', err);
+  res.status(500).json({ 
+    message: 'Something went wrong!', 
+    error: err.message 
+  });
 });
 
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log('Available routes:');
+  console.log('- Auth:', '/api/auth');
+  console.log('- Users:', '/api/users');
+  console.log('- Messages:', '/api/messages');
+  console.log('- Groups:', '/api/groups');
+});
 
 module.exports = app;

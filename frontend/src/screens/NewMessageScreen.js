@@ -233,14 +233,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messageItem: {
-    padding: 5,
-    marginVertical: 3,
-    width: '100%',
+    padding: 10,
+    marginVertical: 5,
+    maxWidth: '80%',
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 2,
   },
   messageContent: {
     padding: 10,
-    borderRadius: 10,
-    maxWidth: '80%',
   },
   sentMessageContainer: {
     alignItems: 'flex-end',
@@ -294,15 +300,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 5,
     paddingHorizontal: 10,
-    marginRight: 10,
+    backgroundColor: '#ffffff',
   },
   sendButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#4CAF50',
     padding: 10,
     borderRadius: 5,
+    justifyContent: 'center',
+    marginLeft: 10,
   },
   buttonText: {
-    color: 'white',
+    color: '#fff',
     fontWeight: 'bold',
-  }
+  },
 });
