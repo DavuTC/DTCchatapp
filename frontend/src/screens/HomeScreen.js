@@ -5,7 +5,7 @@ import { authService } from '../services/auth';
 export default function HomeScreen({ navigation }) {
   const [users, setUsers] = useState([]);
   const [directMessages, setDirectMessages] = useState([]);
-  const [groups, setGroups] = useState([]); // Gruplar için state eklendi
+  const [groups, setGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,6 +49,10 @@ export default function HomeScreen({ navigation }) {
       console.error('Logout error:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
     }
+  };
+
+  const handleProfile = () => {
+    navigation.navigate('Profile');
   };
 
   const navigateToChat = (chatData) => {
@@ -156,9 +160,14 @@ export default function HomeScreen({ navigation }) {
         style={styles.list}
       />
       
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Logout</Text>
-      </TouchableOpacity>
+      <View style={styles.bottomButtonsContainer}>
+        <TouchableOpacity style={styles.profileButton} onPress={handleProfile}>
+          <Text style={styles.profileButtonText}>Account Settings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -250,16 +259,35 @@ const styles = StyleSheet.create({
     color: '#95A5A6',
     fontStyle: 'italic',
   },
+  bottomButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  profileButton: {
+    backgroundColor: '#34C759',
+    padding: 12,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 10,
+  },
+  profileButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center',
+  },
   logoutButton: {
     backgroundColor: '#FF3B30',
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
+    flex: 1,
+    marginLeft: 10,
   },
   logoutButtonText: {
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+    textAlign: 'center',
   },
 });

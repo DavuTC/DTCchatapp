@@ -6,9 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert
+  Alert,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
+  TextInput
 } from 'react-native';
-import { TextInput, Checkbox, Button } from 'react-native-paper';
+import { Checkbox, Button } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import { authService } from '../services/auth';
@@ -21,11 +25,11 @@ const NewGroupScreen = () => {
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const initializeScreen = async () => {
       try {
-        // Mevcut kullanıcı bilgisini al
         const userString = await SecureStore.getItemAsync('user');
         if (userString) {
           const userData = JSON.parse(userString);
@@ -48,7 +52,6 @@ const NewGroupScreen = () => {
       const userString = await SecureStore.getItemAsync('user');
       const currentUser = userString ? JSON.parse(userString) : null;
       
-      // Mevcut kullanıcıyı listeden çıkar
       const filteredUsers = currentUser 
         ? fetchedUsers.filter(user => user.id !== currentUser.id)
         : fetchedUsers;
@@ -93,7 +96,7 @@ const NewGroupScreen = () => {
       
       const groupData = {
         name: groupName.trim(),
-        members: [...selectedUsers, currentUser.id], // Mevcut kullanıcıyı da ekle
+        members: [...selectedUsers, currentUser.id],
         admin: currentUser.id
       };
 
@@ -107,14 +110,16 @@ const NewGroupScreen = () => {
       );
     } catch (error) {
       console.error('Error creating group:', error);
-      Alert.alert(
-        'Error',
-        'Failed to create group. Please try again.'
-      );
+      Alert.alert('Error', 'Failed to create group. Please try again.');
     } finally {
       setCreating(false);
     }
   };
+
+  const filteredUsers = users.filter(user =>
+    user.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -125,125 +130,201 @@ const NewGroupScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        mode="outlined"
-        label="Group Name"
-        value={groupName}
-        onChangeText={setGroupName}
-        style={styles.input}
-        placeholder="Enter group name"
-      />
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoidingView}
+      >
+        <View style={styles.headerContainer}>
+          <TextInput
+            style={styles.groupNameInput}
+            placeholder="Enter group name"
+            value={groupName}
+            onChangeText={setGroupName}
+            placeholderTextColor="#666"
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search users..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#666"
+          />
+        </View>
 
-      <Text style={styles.subtitle}>Select Members:</Text>
+        <Text style={styles.subtitle}>Select Members ({selectedUsers.length} selected)</Text>
 
-      <ScrollView style={styles.userList}>
-        {users.map(user => (
-          <TouchableOpacity
-            key={user.id}
-            style={styles.userItem}
-            onPress={() => toggleUserSelection(user.id)}
-          >
-            <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user.displayName}</Text>
-              <Text style={styles.userEmail}>{user.email}</Text>
-            </View>
-            <Checkbox
-              status={selectedUsers.includes(user.id) ? 'checked' : 'unchecked'}
+        <ScrollView style={styles.userList}>
+          {filteredUsers.map(user => (
+            <TouchableOpacity
+              key={user.id}
+              style={[
+                styles.userItem,
+                selectedUsers.includes(user.id) && styles.selectedUserItem
+              ]}
               onPress={() => toggleUserSelection(user.id)}
-              color="#007AFF"
-            />
-          </TouchableOpacity>
-        ))}
-        {users.length === 0 && (
-          <Text style={styles.noUsersText}>No users available</Text>
-        )}
-      </ScrollView>
+            >
+              <View style={styles.avatarContainer}>
+                <Text style={styles.avatarText}>
+                  {user.displayName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>{user.displayName}</Text>
+                <Text style={styles.userEmail}>{user.email}</Text>
+              </View>
+              <Checkbox
+                status={selectedUsers.includes(user.id) ? 'checked' : 'unchecked'}
+                onPress={() => toggleUserSelection(user.id)}
+                color="#007AFF"
+              />
+            </TouchableOpacity>
+          ))}
+          {filteredUsers.length === 0 && (
+            <Text style={styles.noUsersText}>No users found</Text>
+          )}
+        </ScrollView>
 
-      <View style={styles.footer}>
-        <Text style={styles.selectedCount}>
-          Selected: {selectedUsers.length} members
-        </Text>
-        <Button
-          mode="contained"
-          onPress={createGroup}
-          loading={creating}
-          disabled={creating || selectedUsers.length < 2 || !groupName.trim()}
-          style={styles.createButton}
-        >
-          Create Group
-        </Button>
-      </View>
-    </View>
+        <View style={styles.footer}>
+          <Button
+            mode="contained"
+            onPress={createGroup}
+            loading={creating}
+            disabled={creating || selectedUsers.length < 2 || !groupName.trim()}
+            style={[
+              styles.createButton,
+              (creating || selectedUsers.length < 2 || !groupName.trim()) && 
+              styles.disabledButton
+            ]}
+            labelStyle={styles.createButtonLabel}
+          >
+            Create Group ({selectedUsers.length} members)
+          </Button>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16
+    backgroundColor: '#F8F9FA'
+  },
+  keyboardAvoidingView: {
+    flex: 1
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center'
   },
-  input: {
-    marginBottom: 16,
-    backgroundColor: '#fff'
+  headerContainer: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E9ECEF'
+  },
+  groupNameInput: {
+    height: 48,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#DEE2E6'
+  },
+  searchInput: {
+    height: 40,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#DEE2E6'
   },
   subtitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 8,
-    color: '#333'
+    margin: 16,
+    color: '#2C3E50'
   },
   userList: {
     flex: 1,
-    marginBottom: 16
+    paddingHorizontal: 16
   },
   userItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee'
+    padding: 12,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2
+  },
+  selectedUserItem: {
+    backgroundColor: '#E3F2FD',
+    borderWidth: 1,
+    borderColor: '#2196F3'
+  },
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12
+  },
+  avatarText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold'
   },
   userInfo: {
     flex: 1,
-    marginRight: 8
+    marginRight: 12
   },
   userName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
-    marginBottom: 2
+    color: '#2C3E50',
+    marginBottom: 4
   },
   userEmail: {
     fontSize: 14,
-    color: '#666'
+    color: '#7F8C8D'
   },
   noUsersText: {
     textAlign: 'center',
     marginTop: 20,
-    color: '#666',
+    color: '#7F8C8D',
     fontStyle: 'italic'
   },
   footer: {
     padding: 16,
+    backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    backgroundColor: '#fff'
-  },
-  selectedCount: {
-    textAlign: 'center',
-    marginBottom: 8,
-    color: '#666'
+    borderTopColor: '#E9ECEF'
   },
   createButton: {
-    paddingVertical: 8,
-    backgroundColor: '#007AFF'
+    height: 48,
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    elevation: 2
+  },
+  disabledButton: {
+    backgroundColor: '#CED4DA'
+  },
+  createButtonLabel: {
+    fontSize: 16,
+    fontWeight: 'bold'
   }
 });
 

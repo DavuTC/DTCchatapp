@@ -7,6 +7,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import NewMessageScreen from './src/screens/NewMessageScreen';
 import NewGroupScreen from './src/screens/NewGroupScreen';
 import ChatScreen from './src/screens/ChatScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 
 const Stack = createStackNavigator();
 
@@ -21,7 +22,7 @@ export default function App() {
         <Stack.Screen name="NewGroup" component={NewGroupScreen} options={{ title: 'New Group' }} />
         <Stack.Screen name="ChatScreen"  component={ChatScreen}
          options={({ route }) => ({ title: route.params?.name || route.params?.groupName || 'Chat', headerShown: true })} />
-
+        <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Account Settings' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

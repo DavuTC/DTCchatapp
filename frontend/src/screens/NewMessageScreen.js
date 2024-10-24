@@ -1,316 +1,363 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { getUsers, sendMessage, getMessages } from '../services/api';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
+  Animated
+} from 'react-native';
+import { authService } from '../services/auth';
 
 export default function NewMessageScreen({ navigation }) {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([]);
-  const [newUserName, setNewUserName] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [inputHeight, setInputHeight] = useState(40);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     fetchUsers();
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   const fetchUsers = async () => {
     try {
-      const fetchedUsers = await getUsers();
+      setIsLoading(true);
+      const fetchedUsers = await authService.getUsers();
       setUsers(fetchedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
-      Alert.alert('Error', 'Failed to fetch users. Please try again.');
+      Alert.alert('Error', 'Failed to fetch users');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleAddUser = () => {
-    if (newUserName.trim() === '') {
-      Alert.alert('Error', 'Please enter a user name');
-      return;
-    }
-    const newUser = {
-      id: `temp_${Date.now().toString()}`,
-      displayName: newUserName.trim()
-    };
-    setUsers([...users, newUser]);
-    setNewUserName('');
-    Alert.alert('Success', 'New user added successfully');
-  };
-
-  const handleUserSelect = async (user) => {
-    setSelectedUser(user);
-    try {
-      const fetchedMessages = await getMessages(user.id);
-      setMessages(fetchedMessages);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      Alert.alert('Error', 'Failed to fetch messages. Please try again.');
-    }
+  const handleUserSelect = (user) => {
+    const animation = Animated.spring(fadeAnim, {
+      toValue: 0.5,
+      useNativeDriver: true,
+      speed: 12,
+      bounciness: 8
+    });
+    animation.start(() => {
+      setSelectedUser(user);
+      Animated.spring(fadeAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 12,
+        bounciness: 8
+      }).start();
+    });
   };
 
   const handleSendMessage = async () => {
-    if (!selectedUser) {
-      Alert.alert('Error', 'Please select a user');
-      return;
-    }
-    if (!message.trim()) {
-      Alert.alert('Error', 'Please enter a message');
-      return;
-    }
     try {
-      const response = await sendMessage(selectedUser.id, message, true);
-      console.log('Message sent:', response);
+      if (!selectedUser) {
+        Alert.alert('Error', 'Please select a user');
+        return;
+      }
 
-      const newMessage = {
-        _id: response._id || Date.now().toString(),
-        content: message,
-        sender: 'You',
-        createdAt: new Date().toISOString(),
-      };
-      setMessages(prevMessages => [newMessage, ...prevMessages]);
-      
-      setMessage('');
+      if (!message.trim()) {
+        Alert.alert('Error', 'Please enter a message');
+        return;
+      }
+
+      setIsLoading(true);
+
+      await authService.sendMessage({
+        receiver: selectedUser._id,
+        content: message.trim(),
+        type: 'direct'
+      });
+
+      Alert.alert(
+        'Success', 
+        'Message sent successfully', 
+        [{
+          text: 'OK',
+          onPress: () => navigation.goBack(),
+          style: 'default'
+        }],
+        { cancelable: false }
+      );
     } catch (error) {
       console.error('Error sending message:', error);
-      Alert.alert('Error', error.message || 'Failed to send message. Please try again.');
+      Alert.alert('Error', 'Failed to send message');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const renderUserItem = ({ item }) => (
-    <TouchableOpacity
-      style={[styles.userItem, selectedUser?.id === item.id && styles.selectedUserItem]}
-      onPress={() => handleUserSelect(item)}
-    >
-      <Text style={styles.userName}>{item.displayName}</Text>
-    </TouchableOpacity>
+  const filteredUsers = users.filter(user =>
+    user.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const renderMessageItem = ({ item }) => {
-    const isCurrentUser = item.sender === 'You';
-    const senderName = isCurrentUser ? 'You' : selectedUser?.displayName || item.sender;
-    
+  const renderUserItem = ({ item }) => {
+    const isSelected = selectedUser?._id === item._id;
     return (
-      <View style={[
-        styles.messageItem,
-        isCurrentUser ? styles.sentMessageContainer : styles.receivedMessageContainer
-      ]}>
-        <View style={[
-          styles.messageContent,
-          isCurrentUser ? styles.sentMessage : styles.receivedMessage
-        ]}>
-          <Text style={[
-            styles.messageSender,
-            isCurrentUser ? styles.sentSenderName : styles.receivedSenderName
-          ]}>
-            {senderName}
-          </Text>
-          <Text style={styles.messageText}>{item.content}</Text>
-          <Text style={styles.messageTimestamp}>
-            {new Date(item.createdAt).toLocaleTimeString()}
-          </Text>
-        </View>
-      </View>
+      <Animated.View style={{ opacity: fadeAnim }}>
+        <TouchableOpacity
+          style={[
+            styles.userItem,
+            isSelected && styles.selectedUserItem
+          ]}
+          onPress={() => handleUserSelect(item)}
+        >
+          <View style={styles.userInfo}>
+            <View style={[
+              styles.avatarContainer,
+              isSelected && styles.selectedAvatarContainer
+            ]}>
+              <Text style={styles.avatarText}>
+                {item.displayName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.userDetails}>
+              <Text style={[
+                styles.userName,
+                isSelected && styles.selectedUserName
+              ]}>
+                {item.displayName}
+              </Text>
+              <Text style={styles.userEmail}>{item.email}</Text>
+            </View>
+            {isSelected && (
+              <View style={styles.checkmarkContainer}>
+                <Text style={styles.checkmark}>✓</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
     );
   };
 
+  if (isLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-    >
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.addUserSection}>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoidingView}
+      >
+        <View style={styles.searchContainer}>
           <TextInput
-            style={styles.input}
-            placeholder="Enter new user name"
-            value={newUserName}
-            onChangeText={setNewUserName}
+            style={styles.searchInput}
+            placeholder="Search users..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#8E8E93"
           />
-          <TouchableOpacity style={styles.addButton} onPress={handleAddUser}>
-            <Text style={styles.buttonText}>Add User</Text>
-          </TouchableOpacity>
         </View>
 
-        <Text style={styles.title}>Select a user to message:</Text>
-        <FlatList
-          data={users}
-          renderItem={renderUserItem}
-          keyExtractor={(item) => item.id.toString()}
-          style={styles.userList}
-        />
+        <Text style={styles.sectionTitle}>Select Recipient</Text>
 
-        {selectedUser && (
-          <View style={styles.chatSection}>
-            <Text style={styles.chatTitle}>Chat with {selectedUser.displayName}</Text>
-            <FlatList
-              data={messages}
-              renderItem={renderMessageItem}
-              keyExtractor={(item) => item._id.toString()}
-              style={styles.messageList}
-              inverted
-            />
-          </View>
-        )}
-      </ScrollView>
+        <View style={styles.userListContainer}>
+          <FlatList
+            data={filteredUsers}
+            renderItem={renderUserItem}
+            keyExtractor={(item) => item._id}
+            ListEmptyComponent={() => (
+              <Text style={styles.emptyText}>No users found</Text>
+            )}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.userList}
+          />
+        </View>
 
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.messageInput}
-          placeholder="Type your message here"
-          value={message}
-          onChangeText={setMessage}
-          multiline
-        />
-        <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
-          <Text style={styles.buttonText}>Send</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+        <View style={styles.messageContainer}>
+          <Text style={styles.sectionTitle}>Message</Text>
+          <TextInput
+            style={[styles.messageInput, { height: Math.max(100, inputHeight) }]}
+            placeholder="Type your message..."
+            value={message}
+            onChangeText={setMessage}
+            multiline
+            onContentSizeChange={(event) => {
+              setInputHeight(event.nativeEvent.contentSize.height);
+            }}
+            placeholderTextColor="#8E8E93"
+          />
+
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              (!selectedUser || !message.trim()) && styles.disabledButton
+            ]}
+            onPress={handleSendMessage}
+            disabled={!selectedUser || !message.trim()}
+          >
+            <Text style={styles.sendButtonText}>
+              Send to {selectedUser?.displayName || 'Selected User'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F2F2F7'
   },
-  scrollView: {
+  keyboardAvoidingView: {
+    flex: 1
+  },
+  centered: {
     flex: 1,
-    padding: 10,
-  },
-  addUserSection: {
-    flexDirection: 'row',
-    marginBottom: 10,
-  },
-  input: {
-    flex: 1,
-    height: 40,
-    borderColor: '#cccccc',
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginRight: 10,
-    backgroundColor: '#ffffff',
-  },
-  addButton: {
-    backgroundColor: '#4CAF50',
-    padding: 10,
-    borderRadius: 5,
     justifyContent: 'center',
+    alignItems: 'center'
   },
-  title: {
+  searchContainer: {
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA'
+  },
+  searchInput: {
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    fontSize: 16,
+    color: '#000000'
+  },
+  sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    fontWeight: '600',
+    marginHorizontal: 16,
+    marginVertical: 12,
+    color: '#1C1C1E'
+  },
+  userListContainer: {
+    flex: 1,
   },
   userList: {
-    maxHeight: 200,
-    marginBottom: 10,
+    padding: 16
   },
   userItem: {
-    padding: 15,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3
   },
   selectedUserItem: {
-    backgroundColor: '#e6e6e6',
+    backgroundColor: '#E3F2FD',
+    borderWidth: 1,
+    borderColor: '#007AFF'
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  avatarContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12
+  },
+  selectedAvatarContainer: {
+    backgroundColor: '#005DB4'
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600'
+  },
+  userDetails: {
+    flex: 1
   },
   userName: {
     fontSize: 16,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginBottom: 4
   },
-  chatSection: {
-    flex: 1,
-    marginBottom: 10,
+  selectedUserName: {
+    color: '#007AFF'
   },
-  chatTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
+  userEmail: {
+    fontSize: 14,
+    color: '#8E8E93'
   },
-  messageList: {
-    flex: 1,
+  checkmarkContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#34C759',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  messageItem: {
-    padding: 10,
-    marginVertical: 5,
-    maxWidth: '80%',
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  messageContent: {
-    padding: 10,
-  },
-  sentMessageContainer: {
-    alignItems: 'flex-end',
-  },
-  receivedMessageContainer: {
-    alignItems: 'flex-start',
-  },
-  sentMessage: {
-    backgroundColor: '#DCF8C6',
-    borderTopRightRadius: 2,
-  },
-  receivedMessage: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 2,
-  },
-  messageSender: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 2,
-  },
-  sentSenderName: {
-    textAlign: 'right',
-    color: '#666',
-  },
-  receivedSenderName: {
-    textAlign: 'left',
-    color: '#666',
-  },
-  messageText: {
+  checkmark: {
+    color: '#FFFFFF',
     fontSize: 16,
-    color: '#000',
+    fontWeight: 'bold'
   },
-  messageTimestamp: {
-    fontSize: 11,
-    color: '#888',
-    alignSelf: 'flex-end',
-    marginTop: 2,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
+  messageContainer: {
+    padding: 16,
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    backgroundColor: '#ffffff',
+    borderTopColor: '#E5E5EA'
   },
   messageInput: {
-    flex: 1,
-    height: 40,
-    borderColor: '#cccccc',
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 16,
+    color: '#000000',
+    textAlignVertical: 'top',
+    marginBottom: 16
   },
   sendButton: {
-    backgroundColor: '#4CAF50',
-    padding: 10,
-    borderRadius: 5,
-    justifyContent: 'center',
-    marginLeft: 10,
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center'
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  disabledButton: {
+    backgroundColor: '#C7C7CC'
   },
+  sendButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#8E8E93',
+    fontSize: 16,
+    marginTop: 32,
+    fontStyle: 'italic'
+  }
 });

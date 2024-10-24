@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert
+  Alert,
+  SafeAreaView,
+  Animated,
+  Keyboard
 } from 'react-native';
 import { format } from 'date-fns';
 import * as SecureStore from 'expo-secure-store';
@@ -22,22 +25,44 @@ export default function ChatScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [inputHeight, setInputHeight] = useState(40);
+  const flatListRef = useRef(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Mevcut kullanıcıyı yükle
   useEffect(() => {
-    loadCurrentUser();
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
-  // Başlık ve mesajları yükle
+  useEffect(() => {
+    loadCurrentUser();
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => flatListRef.current?.scrollToOffset({ offset: 0 })
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+    };
+  }, []);
+
   useEffect(() => {
     navigation.setOptions({
-      title: type === 'group' ? groupName : name
+      title: type === 'group' ? groupName : name,
+      headerStyle: {
+        backgroundColor: '#007AFF',
+      },
+      headerTintColor: '#fff',
+      headerTitleStyle: {
+        fontWeight: '600',
+      },
     });
     fetchMessages();
   }, [type, groupName, name, navigation]);
 
-  // Refresh interval (her 10 saniyede bir mesajları yenile)
-  // burada yalnızca mesajlar yenilenmeli 
   useEffect(() => {
     const interval = setInterval(fetchMessages, 10000);
     return () => clearInterval(interval);
@@ -90,6 +115,7 @@ export default function ChatScreen({ route, navigation }) {
       const sentMessage = await authService.sendMessage(messageData);
       setMessages(prev => [sentMessage, ...prev]);
       setNewMessage('');
+      Keyboard.dismiss();
     } catch (error) {
       console.error('Error sending message:', error);
       Alert.alert('Error', 'Failed to send message');
@@ -98,34 +124,50 @@ export default function ChatScreen({ route, navigation }) {
     }
   };
 
-  const renderMessage = useCallback(({ item }) => {
+  const renderMessage = useCallback(({ item, index }) => {
     const isOwnMessage = item.sender?._id === currentUser?.id;
+    const showAvatar = !isOwnMessage && type === 'group';
 
     return (
-      <View style={[
-        styles.messageContainer,
-        isOwnMessage ? styles.ownMessage : styles.otherMessage
-      ]}>
-        {!isOwnMessage && (
-          <Text style={styles.senderName}>
-            {type === 'group' ? item.sender?.displayName : ''}
-          </Text>
+      <Animated.View
+        style={[
+          styles.messageContainer,
+          isOwnMessage ? styles.ownMessage : styles.otherMessage,
+          { opacity: fadeAnim }
+        ]}
+      >
+        {showAvatar && (
+          <View style={styles.avatarContainer}>
+            <Text style={styles.avatarText}>
+              {item.sender?.displayName?.charAt(0).toUpperCase()}
+            </Text>
+          </View>
         )}
-        <Text style={[
-          styles.messageText,
-          isOwnMessage ? styles.ownMessageText : styles.otherMessageText
-        ]}>
-          {item.content}
-        </Text>
-        <Text style={[
-          styles.messageTime,
-          isOwnMessage ? styles.ownMessageTime : styles.otherMessageTime
-        ]}>
-          {format(new Date(item.createdAt), 'HH:mm')}
-        </Text>
-      </View>
+        <View style={styles.messageContent}>
+          {showAvatar && (
+            <Text style={styles.senderName}>{item.sender?.displayName}</Text>
+          )}
+          <View style={[
+            styles.messageBubble,
+            isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
+          ]}>
+            <Text style={[
+              styles.messageText,
+              isOwnMessage ? styles.ownMessageText : styles.otherMessageText
+            ]}>
+              {item.content}
+            </Text>
+            <Text style={[
+              styles.messageTime,
+              isOwnMessage ? styles.ownMessageTime : styles.otherMessageTime
+            ]}>
+              {format(new Date(item.createdAt), 'HH:mm')}
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
     );
-  }, [currentUser, type]);
+  }, [currentUser, type, fadeAnim]);
 
   if (loading) {
     return (
@@ -136,63 +178,73 @@ export default function ChatScreen({ route, navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-    >
-      <FlatList
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={item => item._id}
-        inverted
-        style={styles.messagesList}
-        contentContainerStyle={styles.messagesContainer}
-        ListEmptyComponent={() => (
-          <Text style={styles.emptyText}>No messages yet</Text>
-        )}
-      />
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={newMessage}
-          onChangeText={setNewMessage}
-          placeholder="Type a message..."
-          placeholderTextColor="#666"
-          multiline
-          maxLength={1000}
-          returnKeyType="send"
-          enablesReturnKeyAutomatically
-          editable={!sending}
-        />
-        <TouchableOpacity 
-          style={[
-            styles.sendButton,
-            (!newMessage.trim() || sending) && styles.sendButtonDisabled
-          ]}
-          onPress={sendMessage}
-          disabled={!newMessage.trim() || sending}
-        >
-          {sending ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.sendButtonText}>Send</Text>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={item => item._id}
+          inverted
+          style={styles.messagesList}
+          contentContainerStyle={styles.messagesContainer}
+          ListEmptyComponent={() => (
+            <Text style={styles.emptyText}>No messages yet</Text>
           )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          onEndReachedThreshold={0.1}
+        />
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={[styles.input, { height: Math.max(40, inputHeight) }]}
+            value={newMessage}
+            onChangeText={setNewMessage}
+            placeholder="Type a message..."
+            placeholderTextColor="#8E8E93"
+            multiline
+            maxLength={1000}
+            onContentSizeChange={(event) => {
+              setInputHeight(event.nativeEvent.contentSize.height);
+            }}
+            enablesReturnKeyAutomatically
+            editable={!sending}
+          />
+          <TouchableOpacity 
+            style={[
+              styles.sendButton,
+              (!newMessage.trim() || sending) && styles.sendButtonDisabled
+            ]}
+            onPress={sendMessage}
+            disabled={!newMessage.trim() || sending}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.sendButtonText}>Send</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F2F2F7',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F2F2F7',
   },
   messagesList: {
     flex: 1,
@@ -201,77 +253,106 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   messageContainer: {
-    maxWidth: '80%',
-    marginVertical: 5,
-    padding: 10,
-    borderRadius: 15,
+    flexDirection: 'row',
+    marginVertical: 4,
+    maxWidth: '85%',
   },
   ownMessage: {
     alignSelf: 'flex-end',
-    backgroundColor: '#007AFF',
-    borderBottomRightRadius: 5,
+    flexDirection: 'row-reverse',
   },
   otherMessage: {
     alignSelf: 'flex-start',
-    backgroundColor: '#E9ECEF',
-    borderBottomLeftRadius: 5,
+  },
+  avatarContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  messageContent: {
+    flex: 1,
   },
   senderName: {
     fontSize: 12,
-    color: '#6C757D',
+    color: '#8E8E93',
     marginBottom: 2,
+    marginLeft: 12,
+  },
+  messageBubble: {
+    borderRadius: 20,
+    padding: 12,
+    maxWidth: '90%',
+  },
+  ownMessageBubble: {
+    backgroundColor: '#007AFF',
+    borderBottomRightRadius: 4,
+  },
+  otherMessageBubble: {
+    backgroundColor: '#E5E5EA',
+    borderBottomLeftRadius: 4,
   },
   messageText: {
     fontSize: 16,
+    lineHeight: 20,
   },
   ownMessageText: {
     color: '#FFFFFF',
   },
   otherMessageText: {
-    color: '#212529',
+    color: '#000000',
   },
   messageTime: {
     fontSize: 11,
-    marginTop: 2,
+    marginTop: 4,
     alignSelf: 'flex-end',
   },
   ownMessageTime: {
     color: 'rgba(255, 255, 255, 0.7)',
   },
   otherMessageTime: {
-    color: '#6C757D',
+    color: '#8E8E93',
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 10,
-    paddingHorizontal: 15,
-    backgroundColor: 'white',
+    padding: 8,
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#DEE2E6',
-    alignItems: 'center',
+    borderTopColor: '#E5E5EA',
+    alignItems: 'flex-end',
   },
   input: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F2F2F7',
     borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    paddingRight: 35,
-    marginRight: 10,
-    maxHeight: 100,
-    color: '#212529',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
+    marginRight: 8,
     fontSize: 16,
+    color: '#000000',
+    maxHeight: 120,
   },
   sendButton: {
     backgroundColor: '#007AFF',
     borderRadius: 20,
     paddingVertical: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    minWidth: 60,
+    height: 36,
   },
   sendButtonDisabled: {
-    backgroundColor: '#B0B0B0',
+    backgroundColor: '#C7C7CC',
   },
   sendButtonText: {
     color: '#FFFFFF',
@@ -280,8 +361,9 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#6C757D',
+    color: '#8E8E93',
+    fontSize: 16,
     fontStyle: 'italic',
-    marginTop: 20,
+    marginTop: 40,
   }
 });
