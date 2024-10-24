@@ -193,13 +193,29 @@ export const getGroupMessages = async (groupId) => {
 
 export const sendMessage = async (messageData) => {
   try {
-    console.log('Sending message:', messageData);
-    const response = await api.post('/messages', messageData);
-    console.log('Message sent successfully:', response.data);
-    return response.data;
+      console.log('Preparing message data:', messageData);
+      
+      // Mesaj tipine göre payload hazırla
+      const payload = {
+          content: messageData.content,
+          type: messageData.type,
+          isDirect: messageData.type === 'direct'
+      };
+
+      // Mesaj tipine göre ek bilgileri ekle
+      if (messageData.type === 'direct') {
+          payload.recipientId = messageData.receiver || messageData.recipientId;
+      } else if (messageData.type === 'group') {
+          payload.groupId = messageData.groupId;
+      }
+
+      console.log('Sending payload:', payload);
+      const response = await api.post('/messages', payload);
+      console.log('Message sent successfully:', response.data);
+      return response.data;
   } catch (error) {
-    console.error('Send message error:', error.response?.data || error);
-    throw error;
+      console.error('Send message error:', error.response?.data || error);
+      throw error;
   }
 };
 
