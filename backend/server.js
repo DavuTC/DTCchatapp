@@ -36,7 +36,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
-app.use('/api/groups', groupRoutes);  // Düzeltildi
+app.use('/api/groups', groupRoutes);  
 
 // Debug middleware - gelen istekleri logla
 app.use((req, res, next) => {

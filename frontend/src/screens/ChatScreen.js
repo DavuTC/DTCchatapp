@@ -37,6 +37,7 @@ export default function ChatScreen({ route, navigation }) {
   }, [type, groupName, name, navigation]);
 
   // Refresh interval (her 10 saniyede bir mesajları yenile)
+  // burada yalnızca mesajlar yenilenmeli 
   useEffect(() => {
     const interval = setInterval(fetchMessages, 10000);
     return () => clearInterval(interval);

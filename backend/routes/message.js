@@ -4,27 +4,6 @@ const auth = require('../middleware/auth');
 const Message = require('../models/Message');
 const Group = require('../models/Group');
 
-// Get direct messages with a specific user
-router.get('/direct/:userId', auth, async (req, res) => {
-  try {
-    const messages = await Message.find({
-      $or: [
-        { sender: req.user.userId, recipient: req.params.userId },
-        { sender: req.params.userId, recipient: req.user.userId }
-      ],
-      isDirect: true
-    })
-    .populate('sender', 'displayName email')
-    .populate('recipient', 'displayName email')
-    .sort({ createdAt: -1 });
-
-    res.json(messages);
-  } catch (error) {
-    console.error('Get direct messages error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
 // Get all direct messages
 router.get('/direct', auth, async (req, res) => {
   try {
@@ -49,7 +28,7 @@ router.get('/direct', auth, async (req, res) => {
 // Get group messages
 router.get('/group/:groupId', auth, async (req, res) => {
   try {
-    // Önce kullanıcının grup üyesi olup olmadığını kontrol et
+    // Grup üyeliği kontrolü
     const group = await Group.findOne({
       _id: req.params.groupId,
       members: req.user.userId
@@ -64,11 +43,12 @@ router.get('/group/:groupId', auth, async (req, res) => {
       isDirect: false
     })
     .populate('sender', 'displayName email')
+    .populate('group', 'name')
     .sort({ createdAt: -1 });
 
     res.json(messages);
   } catch (error) {
-    console.error('Get group messages error:', error);
+    console.error('Error fetching group messages:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -76,24 +56,26 @@ router.get('/group/:groupId', auth, async (req, res) => {
 // Send message (handles both direct and group messages)
 router.post('/', auth, async (req, res) => {
   try {
-    const { recipientId, groupId, content, isDirect = true } = req.body;
+    const { content, recipientId, groupId, type } = req.body;
 
     // Mesaj içeriği kontrolü
-    if (!content || !content.trim()) {
+    if (!content?.trim()) {
       return res.status(400).json({ message: 'Message content is required' });
     }
 
-    // Grup mesajı veya direkt mesaj kontrolü
-    if (!isDirect && !groupId) {
-      return res.status(400).json({ message: 'Group ID is required for group messages' });
-    }
+    const messageData = {
+      sender: req.user.userId,
+      content: content.trim(),
+      isDirect: type !== 'group'
+    };
 
-    if (isDirect && !recipientId) {
-      return res.status(400).json({ message: 'Recipient ID is required for direct messages' });
-    }
+    // Grup mesajı için
+    if (type === 'group') {
+      if (!groupId) {
+        return res.status(400).json({ message: 'Group ID is required for group messages' });
+      }
 
-    // Grup mesajı için grup üyeliği kontrolü
-    if (!isDirect) {
+      // Grup üyeliği kontrolü
       const group = await Group.findOne({
         _id: groupId,
         members: req.user.userId
@@ -102,24 +84,27 @@ router.post('/', auth, async (req, res) => {
       if (!group) {
         return res.status(403).json({ message: 'Not a member of this group' });
       }
+
+      messageData.group = groupId;
+    } 
+    // Direkt mesaj için
+    else {
+      if (!recipientId) {
+        return res.status(400).json({ message: 'Recipient ID is required for direct messages' });
+      }
+      messageData.recipient = recipientId;
     }
 
-    const newMessage = new Message({
-      sender: req.user.userId,
-      content,
-      isDirect,
-      ...(isDirect ? { recipient: recipientId } : { group: groupId }),
-      createdAt: new Date()
-    });
-
+    const newMessage = new Message(messageData);
     await newMessage.save();
 
     const populatedMessage = await Message.findById(newMessage._id)
       .populate('sender', 'displayName email')
-      .populate('recipient', 'displayName email');
+      .populate('recipient', 'displayName email')
+      .populate('group', 'name');
 
-    // Grup mesajı ise grubun son mesajını güncelle
-    if (!isDirect) {
+    // Grup mesajı için son mesajı güncelle
+    if (type === 'group') {
       await Group.findByIdAndUpdate(groupId, {
         lastMessage: newMessage._id
       });
@@ -128,47 +113,29 @@ router.post('/', auth, async (req, res) => {
     res.status(201).json(populatedMessage);
   } catch (error) {
     console.error('Error sending message:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      message: error.message || 'Server error' 
+    });
   }
 });
 
-// Get recent messages (both direct and group)
-router.get('/recent', auth, async (req, res) => {
+// Get direct messages with specific user
+router.get('/direct/:userId', auth, async (req, res) => {
   try {
-    // Direkt mesajları al
-    const directMessages = await Message.find({
+    const messages = await Message.find({
       $or: [
-        { sender: req.user.userId },
-        { recipient: req.user.userId }
+        { sender: req.user.userId, recipient: req.params.userId },
+        { sender: req.params.userId, recipient: req.user.userId }
       ],
       isDirect: true
     })
     .populate('sender', 'displayName email')
     .populate('recipient', 'displayName email')
-    .sort({ createdAt: -1 })
-    .limit(20);
+    .sort({ createdAt: -1 });
 
-    // Kullanıcının üye olduğu grupları al
-    const userGroups = await Group.find({
-      members: req.user.userId
-    });
-
-    // Grup mesajlarını al
-    const groupMessages = await Message.find({
-      group: { $in: userGroups.map(g => g._id) },
-      isDirect: false
-    })
-    .populate('sender', 'displayName email')
-    .populate('group', 'name')
-    .sort({ createdAt: -1 })
-    .limit(20);
-
-    res.json({
-      directMessages,
-      groupMessages
-    });
+    res.json(messages);
   } catch (error) {
-    console.error('Error fetching recent messages:', error);
+    console.error('Error fetching direct messages:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

@@ -136,10 +136,10 @@ export const sendMessage = async (messageData) => {
   try {
     console.log('Sending message:', messageData);
     const response = await api.post('/messages', messageData);
-    console.log('Send message response:', response.data);
+    console.log('Message sent successfully:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Send message error:', error.response ? error.response.data : error.message);
+    console.error('Send message error:', error.response?.data || error);
     throw error;
   }
 };
