@@ -1,4 +1,4 @@
-// src/services/socket.js
+
 import io from 'socket.io-client';
 import * as SecureStore from 'expo-secure-store';
 
