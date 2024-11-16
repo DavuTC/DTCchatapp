@@ -15,6 +15,7 @@ Backend kısmında Node.js ve ekspress.js kullanılarak bir server oluşturulur 
 Frontend kısmında ise React kullanılarak oluşturulan sunucuya bağlanılırı ve uygulama uygun bir kullanıcı oluşturularak kullanılmaya hazır hale gelir. 
 
 > **ℹ️ Not**: This project was developed as part of the Career Master Class training at Siliconmade Academy.
+> 
 > **ℹ️ Not**: Bu proje, Siliconmade Academy'nin Kariyer Master Class eğitimi kapsamında geliştirilmiştir.
 
 ---
@@ -60,6 +61,6 @@ Frontend kısmında ise React kullanılarak oluşturulan sunucuya bağlanılır�
 
 Project Owner/Proje Sahibi: **Davut CEMALLIOĞLU** 👋
 
-Linkedin: [**DavuT.C**](www.linkedin.com/in/davutc)
+Linkedin: [**DavuT.C**](https://www.linkedin.com/in/davutc/)
 
 ---
