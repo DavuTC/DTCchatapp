@@ -49,11 +49,12 @@ Frontend kısmında ise React kullanılarak oluşturulan sunucuya bağlanılır�
    npm install
    ```
 2.2.1. **Uygulamayı Başlatın**:
-       ```bash
-       npx expo start
-       ```
+   ```bash
+   npx expo start
+   ```
 
 > 💡 **Notes**: You can test the application on your local device by downloading the Expo application.
+> 
 > 💡 **Not**: Expo uygulamasını indirerek uygulamayı yerel cihazınızda test edebilirsiniz.
 
 ---
