@@ -37,6 +37,7 @@ Frontend kısmında ise React kullanılarak oluşturulan sunucuya bağlanılır�
      cd backend
      npm install
      ```
+     
 2.1.1. **Uygulamayı Başlatın**:
        ```bash
        npm start
