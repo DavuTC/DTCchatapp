@@ -1,5 +1,5 @@
 
-# 📱 REAL TIME CHAT APP
+# 📱 DTC CHAT APP
 
 This project is a mobile application where users can engage in social activities such as messaging, file sharing, and creating groups. The application allows users to have individual chats as well as create group chats with multiple participants.
 The application consists of two parts: Backend and Frontend,
