@@ -33,15 +33,15 @@ Frontend kısmında ise React kullanılarak oluşturulan sunucuya bağlanılır�
    ```
 
 2.1. **Backend kısmında bulunan Gerekli Paketleri Yükleyin**:
-     ```bash
-     cd backend
-     npm install
-     ```
+   ```bash
+   cd backend
+   npm install
+   ```
      
 2.1.1. **Uygulamayı Başlatın**:
-       ```bash
-       npm start
-       ```
+   ```bash
+   npm start
+   ```
 
 2.2. **frontend kısmında bulunan Gerekli Paketleri Yükleyin**:
    ```bash
