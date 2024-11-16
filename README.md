@@ -23,7 +23,7 @@ Frontend kısmında ise React kullanılarak oluşturulan sunucuya bağlanılır�
 
 1. **Database Creation**
    ```bash
-   To manage the necessary database data for the application, [**download MongoDb and install**](https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-8.0.3-signed.msi) it on your computer. 
+   To manage the necessary database data for the application, download MongoDb and install it on your computer. 
    ```
 
 2. **Clone Project**:
