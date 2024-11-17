@@ -6,13 +6,13 @@ The application consists of two parts: Backend and Frontend,
 and both parts are set up separately.
 In the Backend, a server is created using Node.js and Express.js,
 with MongoDB used as the database.
-In the Frontend, the server is connected using React,
+In the Frontend, the server is connected using React Native,
 and the application becomes ready to use by creating an appropriate user.
 
 Bu proje, kullanıcıların mesajlaşma, dosya gönderme, grup kurma gibi sosyal aktivitelerde bulunabileceği bir mobil uygulamadır. Uygulama, kullanıcıların bireysel sohbetler yapabilmesinin yanı sıra birden fazla kişiyle grup sohbeti oluşturmasına da olanak tanır.
 Uygulama Backend ve Frontend olarak iki kısımdan oluşur ve iki kısımda ayrı ayrı kurulur. 
 Backend kısmında Node.js ve ekspress.js kullanılarak bir server oluşturulur veri tabanı olarak MongoDb kullanılır.
-Frontend kısmında ise React kullanılarak oluşturulan sunucuya bağlanılırı ve uygulama uygun bir kullanıcı oluşturularak kullanılmaya hazır hale gelir. 
+Frontend kısmında ise React Native kullanılarak oluşturulan sunucuya bağlanılırı ve uygulama uygun bir kullanıcı oluşturularak kullanılmaya hazır hale gelir. 
 
 > **ℹ️ Not**: This project was developed as part of the Career Master Class training at Siliconmade Academy.
 > 
